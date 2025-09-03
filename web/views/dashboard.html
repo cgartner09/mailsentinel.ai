@@ -1,0 +1,27 @@
+<h2>Quarantine</h2>
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr><th>When</th><th>From</th><th>To</th><th>Subject</th><th>Verdict</th><th>Score</th><th>Action</th></tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+<script>
+const items = {{items}};
+const tbody = document.getElementById('rows');
+tbody.innerHTML = items.map(i => `
+  <tr>
+    <td>${new Date(i.received_at).toLocaleString()}</td>
+    <td>${i.from_addr}</td>
+    <td>${i.to_addr}</td>
+    <td><a href="/message/${i.id}">${i.subject || '(no subject)'}</a></td>
+    <td>${i.verdict}</td>
+    <td>${(i.score||0).toFixed(2)}</td>
+    <td>
+      <form method="POST" action="/message/${i.id}/release" style="display:inline"><button class="btn" style="background:#22c55e;border-color:#14532d">Release</button></form>
+      <form method="POST" action="/message/${i.id}/delete" style="display:inline"><button class="btn" style="background:#ef4444;border-color:#7f1d1d;margin-left:.25rem;">Delete</button></form>
+    </td>
+  </tr>
+`).join('');
+</script>
