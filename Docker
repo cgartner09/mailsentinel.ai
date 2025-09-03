@@ -1,0 +1,2 @@
+docker build -t mailsentinel-ai .
+docker run --env-file .env -p 8080:8080 mailsentinel-ai
