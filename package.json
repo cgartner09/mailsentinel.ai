@@ -1,0 +1,33 @@
+{
+  "name": "mailsentinel-ai",
+  "version": "1.0.0",
+  "description": "AI-powered email security (scan, quarantine, alerts, dashboard, CLI).",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/server.js",
+    "start": "NODE_ENV=production node src/server.js",
+    "cli": "node cli/mailsentinel.js",
+    "db:reset": "node -e \"import('./src/db.js').then(m=>m.resetDb())\""
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^9.4.0",
+    "body-parser": "^1.20.2",
+    "cookie-parser": "^1.4.6",
+    "csurf": "^1.11.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "express-session": "^1.17.3",
+    "helmet": "^7.1.0",
+    "jsonschema": "^1.4.1",
+    "multer": "^1.4.5-lts.1",
+    "nanoid": "^5.0.7",
+    "nodemailer": "^6.9.13",
+    "qrcode": "^1.5.3",
+    "speakeasy": "^2.0.0",
+    "winston": "^3.13.0"
+  }
+}
