@@ -1,0 +1,13 @@
+{{! layout }}
+<h2>Login</h2>
+<form method="POST" action="/login" class="card">
+  <div style="color:#fca5a5">{{error}}</div>
+  <label>Email</label>
+  <input name="email" type="email" required/>
+  <label>Password</label>
+  <input name="password" type="password" required/>
+  <div style="margin-top:1rem;">
+    <button class="btn" type="submit">Continue</button>
+  </div>
+</form>
+<p style="opacity:.7;margin-top:.5rem;">After first login, you'll be prompted to set up 2FA.</p>
