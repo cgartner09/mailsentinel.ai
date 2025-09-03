@@ -1,0 +1,10 @@
+<h2>Set up 2FA</h2>
+<p>Scan this QR code in your authenticator app, then enter the 6-digit code.</p>
+<img src="{{qr}}" alt="TOTP QR" style="background:#fff;padding:.5rem;border-radius:.5rem"/>
+<form method="POST" action="/totp/verify" class="card" style="margin-top:1rem;">
+  <label>Authenticator Code</label>
+  <input name="token" placeholder="123456" required/>
+  <div style="margin-top:1rem;">
+    <button class="btn" type="submit">Verify</button>
+  </div>
+</form>
