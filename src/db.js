@@ -4,28 +4,20 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-// Use a persistent path if provided, else local ./data/
 const DEFAULT_PATH = path.resolve(process.cwd(), "data", "mailsentinel.sqlite");
-const DB_PATH = process.env.DB_PATH?.trim() || DEFAULT_PATH;
-
-// Ensure the parent directory exists
+export const DB_PATH = (process.env.DB_PATH?.trim() || DEFAULT_PATH);
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
-// Open the database (create if missing)
 const db = new Database(DB_PATH);
-
-// Sensible pragmas
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
-// --- Migrations (idempotent) ---
 db.exec(`
   CREATE TABLE IF NOT EXISTS tenants (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     domain TEXT UNIQUE NOT NULL,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
   );
-
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tenant_id INTEGER NOT NULL,
@@ -35,7 +27,6 @@ db.exec(`
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
   );
-
   CREATE TABLE IF NOT EXISTS api_keys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tenant_id INTEGER NOT NULL,
@@ -44,7 +35,6 @@ db.exec(`
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
   );
-
   CREATE TABLE IF NOT EXISTS quarantines (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tenant_id INTEGER NOT NULL,
@@ -54,7 +44,29 @@ db.exec(`
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
   );
+  /* --- NEW: commerce tables --- */
+  CREATE TABLE IF NOT EXISTS purchases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id INTEGER,
+    user_id INTEGER,
+    plan TEXT NOT NULL,             -- starter | pro | business
+    amount_cents INTEGER NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'usd',
+    status TEXT NOT NULL,           -- paid | refunded | failed | pending
+    external_id TEXT,               -- Stripe session/payment id
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_purchases_created ON purchases(created_at);
+  CREATE INDEX IF NOT EXISTS idx_purchases_status ON purchases(status);
+
+  CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    payload TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 export default db;
-export { DB_PATH };
