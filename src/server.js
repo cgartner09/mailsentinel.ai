@@ -1,59 +1,90 @@
-import 'dotenv/config';
-import express from 'express';
-import helmet from 'helmet';
-import bodyParser from 'body-parser';
-import cookieParser from 'cookie-parser';
-import session from 'express-session';
-import rateLimit from 'express-rate-limit';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { initDb } from './db.js';
-import { ensureAdmin } from './auth.js';
-import apiRouter from './routes/api.js';
-import dashboardRouter from './routes/dashboard.js';
+// src/server.js
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
+import path from "node:path";
+import fs from "node:fs";
+import process from "node:process";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import db, { DB_PATH } from "./db.js";
+
 const app = express();
 
-app.use(helmet({
-  contentSecurityPolicy: false
-}));
-app.use(bodyParser.json({ limit: '2mb' }));
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(cookieParser());
+// --- Basic security & JSON ---
+app.use(helmet());
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true }));
+app.set("trust proxy", 1);
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'dev_secret',
-  resave: false,
-  saveUninitialized: false,
-}));
+// --- CORS (lock to your site if set) ---
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
+app.use(
+  cors({
+    origin: CORS_ORIGIN === "*" ? true : [CORS_ORIGIN],
+    credentials: true,
+  })
+);
 
-const limiter = rateLimit({ windowMs: 60_000, max: 120 });
-app.use(limiter);
+// --- Logging ---
+app.use(morgan("combined"));
 
-app.use('/public', express.static(path.join(__dirname, '..', 'web', 'public')));
-
-app.set('views', path.join(__dirname, '..', 'web', 'views'));
-app.engine('html', (path, opts, cb) => {
-  import('fs').then(fs => {
-    fs.readFile(path, 'utf8', (err, str) => {
-      if (err) return cb(err);
-      // very tiny template interpolation: {{var}}
-      let rendered = str.replace(/\{\{(\w+)\}\}/g, (_, k) => (opts[k] ?? ''));
-      cb(null, rendered);
+// --- Health ---
+app.get("/health", (req, res) => {
+  try {
+    // Tiny db check
+    const row = db.prepare("SELECT 1 AS ok").get();
+    res.status(200).json({
+      status: "ok",
+      db: row?.ok === 1 ? "connected" : "unknown",
+      dbPath: DB_PATH,
+      time: new Date().toISOString(),
     });
-  });
+  } catch (err) {
+    res.status(500).json({ status: "error", error: String(err) });
+  }
 });
-app.set('view engine', 'html');
 
-app.use('/api', apiRouter);
-app.use('/', dashboardRouter);
+// --- Example root ---
+app.get("/", (req, res) => {
+  res.type("text/plain").send("MailSentinel.ai backend is running");
+});
 
-const PORT = process.env.PORT || 8080;
+// --- 404 fallback ---
+app.use((req, res) => res.status(404).json({ error: "Not found" }));
 
-await initDb();
-await ensureAdmin();
+// --- Global error handler ---
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json({ error: "Internal Server Error" });
+});
 
-app.listen(PORT, () => {
-  console.log(`MailSentinel.ai running on http://localhost:${PORT}`);
+// --- Start server ---
+const PORT = Number(process.env.PORT || 3000);
+const HOST = "0.0.0.0";
+
+// Extra startup logs to diagnose crashes
+console.log("==== Boot Info ====");
+console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("PORT:", PORT);
+console.log("CORS_ORIGIN:", CORS_ORIGIN);
+console.log("DB_PATH:", DB_PATH);
+try {
+  const dir = path.dirname(DB_PATH);
+  console.log("DB dir exists:", fs.existsSync(dir));
+} catch (e) {
+  console.log("DB dir check error:", e);
+}
+
+const server = app.listen(PORT, HOST, () => {
+  console.log(`Server listening on http://${HOST}:${PORT}`);
+});
+
+// Graceful crash logs
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
 });
